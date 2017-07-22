@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using UnityEngine;
 
 public class JsonDataService {
@@ -45,11 +46,11 @@ public class JsonDataService {
 [Serializable]
 public class PlayerDTO
 {
-    public int ID { get; set; }
-    public int Rank { get; set; }
-    public string Playername { get; set; }
-    public int Score { get; set; }
-    public string Avatar { get; set; }
+    public int ID;
+    public int Rank;
+    public string Playername;
+    public int Score;
+    public string Avatar;
 }
 
 [Serializable]
