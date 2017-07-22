@@ -31,7 +31,7 @@ public class JsonDataService {
         players = JsonUtility.FromJson<PlayerDTOList>(json).data.ToList();
 
         if (!players.Any())
-            Debug.Log("oh my god!");
+            Debug.Log("Couldn't read the JsonFile!");
         else
             Debug.Log("player: " + JsonUtility.ToJson(players[0]));
     }
