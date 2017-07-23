@@ -20,6 +20,7 @@ public class ScrollViewController : MonoBehaviour
     private int lastIndex;
     private int firstIndex;
 
+
     private float minDragOffset;
 
     private void Awake ()
@@ -88,18 +89,21 @@ public class ScrollViewController : MonoBehaviour
 
             GameObject movedObject = MoveObjectInList(listItems.Count - 1, 0);
             movedObject.transform.SetSiblingIndex(0);
-            lastIndex--;
             firstIndex--;
+            lastIndex--;
 
             contentController controller = movedObject.GetComponent<contentController>();
             object data = dataSource.ElementAt(firstIndex);
             controller.SetContents(data);
         }
 
+
+        // **** This is the line of code I talk about in the "challenges and possible integration problem pdf ******//
+
         // To make the scrolling work although the scrollview just has 20 elements and the 
         // normalizedPosition is based on those 20 elements (0-1), the verticalNormalizedPosition
         // gets set manually by using the minDragOffset
-        scrollrect.verticalNormalizedPosition = 1f - (firstIndex * minDragOffset);
+        //scrollrect.verticalNormalizedPosition = 1f - (firstIndex * minDragOffset);
     }
 
     private GameObject MoveObjectInList(int from, int to)
