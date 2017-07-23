@@ -1,0 +1,21 @@
+fileFormatVersion: 2
+guid: 741f8795bd8e795418e7e575bb485023
+timeCreated: 1500836464
+licenseType: Free
+TrueTypeFontImporter:
+  serializedVersion: 4
+  fontSize: 16
+  forceTextureCase: -2
+  characterSpacing: 0
+  characterPadding: 1
+  includeFontData: 1
+  fontName: Monkey Island 1990
+  fontNames:
+  - Monkey Island 1990
+  fallbackFontReferences: []
+  customCharacters: 
+  fontRenderingMode: 0
+  ascentCalculationMode: 1
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

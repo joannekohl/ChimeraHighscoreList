@@ -1,0 +1,21 @@
+fileFormatVersion: 2
+guid: 9f24ac3277da08e4ab547514b4c0db2f
+timeCreated: 1500835152
+licenseType: Free
+TrueTypeFontImporter:
+  serializedVersion: 4
+  fontSize: 16
+  forceTextureCase: -2
+  characterSpacing: 0
+  characterPadding: 1
+  includeFontData: 1
+  fontName: RetroVille NC
+  fontNames:
+  - RetroVille NC
+  fallbackFontReferences: []
+  customCharacters: 
+  fontRenderingMode: 0
+  ascentCalculationMode: 1
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
