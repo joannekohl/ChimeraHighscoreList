@@ -6,7 +6,8 @@ using System.Linq;
 using System.Text;
 using UnityEngine;
 
-public class JsonDataService {
+public class JsonDataService
+{
 
     private string jsonPath;
 
@@ -31,7 +32,7 @@ public class JsonDataService {
         players = JsonUtility.FromJson<PlayerDTOList>(json).data.ToList();
 
         if (!players.Any())
-            Debug.Log("Couldn't read the JsonFile!");
+            Debug.Log("Couldn't read the JsonFile");
         else
             Debug.Log("player: " + JsonUtility.ToJson(players[0]));
     }

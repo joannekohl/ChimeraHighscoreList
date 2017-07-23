@@ -682,7 +682,8 @@ MonoBehaviour:
   score: {fileID: 114235583848032762}
   trophyIcon: {fileID: 114994934469021786}
   avatarTransform: {fileID: 1229136682623344}
-  name: {fileID: 114371085948464578}
+  playername: {fileID: 114371085948464578}
+  avatarPool: {fileID: 0}
 --- !u!114 &114371085948464578
 MonoBehaviour:
   m_ObjectHideFlags: 1

@@ -3,29 +3,44 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class contentController : MonoBehaviour {
-
+public class contentController : MonoBehaviour
+{
 
     public Text rank;
     public Text score;
     public Image trophyIcon;
     public GameObject avatarTransform;
-    public Text name;
+    public Text playername;
 
+    private AvatarObjectPool avatarPool;
 
-
-    public void SetContents(int rankInput, int scoreInput, Sprite trophyIconTexture, GameObject avatarObject, string nameinput)
+    private void Start()
     {
+        avatarPool = GameObject.FindGameObjectWithTag("avatarPool").GetComponent<AvatarObjectPool>();
 
-        rank.text = rankInput.ToString();
+        if (avatarPool == null)
+            Debug.Log("Casn't find avatarPool");
+    }
 
-        score.text = scoreInput.ToString();
+    private void SetContents(PlayerDTO player)
+    {
+        rank.text = player.Rank.ToString();
+        score.text = player.Score.ToString();
+        //trophyIcon.sprite = player.Trophy;
+        GameObject avatar = avatarPool.GetAvatar(player.Avatar);
+        avatar.SetActive(true);
+        avatar.transform.SetParent(avatarTransform.transform);
+        avatar.transform.localRotation = Quaternion.identity;
+        avatar.transform.localPosition = Vector3.zero;
+        avatar.transform.localScale = Vector3.one;
 
-        trophyIcon.sprite = trophyIconTexture;
+        playername.text = player.Playername;
+    }
 
-        Instantiate(avatarObject, avatarTransform.transform);
-
-        name.text = nameinput.ToString();
-
+    public void SetContents(object data)
+    {
+        SetContents((PlayerDTO)data);
     }
 }
+
+
