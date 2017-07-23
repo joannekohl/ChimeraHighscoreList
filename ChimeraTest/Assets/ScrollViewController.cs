@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class ScrollViewController : MonoBehaviour
 {
@@ -15,16 +16,25 @@ public class ScrollViewController : MonoBehaviour
     public int listCount = 20;
     private List<GameObject> listItems;
 
+    private ScrollRect scrollrect;
 
-	private void Awake ()
+    private int lastIndex;
+    private int firstIndex;
+
+    private float minDragOffset;
+
+
+    private void Awake ()
     {
         listItems = new List<GameObject>(listCount);
-        for(int i = 0; i < listCount; i++)
+        scrollrect = GetComponent<ScrollRect>();
+        for (int i = 0; i < listCount; i++)
         {
             GameObject temp = Instantiate(contentPrefab, contentHolder.transform);
             listItems.Add(temp);
         }
-	}
+
+    }
 
 
     public void SetDataSource(IEnumerable<object> source)
@@ -33,6 +43,7 @@ public class ScrollViewController : MonoBehaviour
             Debug.LogWarning("source is null");
         else
         {
+            minDragOffset = 1f / source.Count();
             dataSource = source;
             GenerateInitialList();
         }
@@ -50,5 +61,59 @@ public class ScrollViewController : MonoBehaviour
             contentController controller = listItem.GetComponent<contentController>();
             controller.SetContents(data);
         }
+        firstIndex = 0;
+        lastIndex = initialListSize;
+    }
+
+    public void OnScrollViewValueChanged(Vector2 value)
+    {
+        if (scrollrect.velocity.y > 0)
+        {
+            //Debug.Log("velocity positive: " + scrollrect.velocity.y);
+
+            if (lastIndex == dataSource.Count() - 1)
+                return;
+
+            GameObject movedObject = MoveObjectInList(0, listItems.Count - 1);
+            movedObject.transform.SetSiblingIndex(listItems.Count);
+
+            lastIndex++;
+            firstIndex++;
+
+            contentController controller = movedObject.GetComponent<contentController>();
+            object data = dataSource.ElementAt(lastIndex);
+            controller.SetContents(data);
+            //scrollrect.verticalNormalizedPosition = 1f - (firstIndex * minDragOffset);
+
+        }
+        else if (scrollrect.velocity.y < 0)
+        {
+            //Debug.Log("velocity negative");
+            if (firstIndex == 0)
+                return;
+
+            GameObject movedObject = MoveObjectInList(listItems.Count - 1, 0);
+            movedObject.transform.SetSiblingIndex(0);
+            lastIndex--;
+            firstIndex--;
+
+            contentController controller = movedObject.GetComponent<contentController>();
+            object data = dataSource.ElementAt(firstIndex);
+            controller.SetContents(data);
+            //scrollrect.verticalNormalizedPosition = 1f - (firstIndex * minDragOffset);
+        }
+
+        scrollrect.verticalNormalizedPosition = 1f - (firstIndex * minDragOffset);
+        //Debug.Log(scrollrect.verticalNormalizedPosition);
+    }
+
+    private GameObject MoveObjectInList(int from, int to)
+    {
+        GameObject go = listItems[from];
+
+        listItems.RemoveAt(from);
+        listItems.Insert(to, go);
+
+        return go;
     }
 }
