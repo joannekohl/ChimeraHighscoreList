@@ -20,7 +20,6 @@ public class ScrollViewController : MonoBehaviour
     private int lastIndex;
     private int firstIndex;
 
-
     private float minDragOffset;
 
     private void Awake ()
@@ -43,6 +42,7 @@ public class ScrollViewController : MonoBehaviour
             // minDragOffset is used for the verticalNormalizedPosition to set the position manually
             minDragOffset = 1f / source.Count();
             dataSource = source;
+
             GenerateInitialList();
         }
     }
@@ -60,7 +60,8 @@ public class ScrollViewController : MonoBehaviour
             controller.SetContents(data);
         }
         firstIndex = 0;
-        lastIndex = initialListSize;
+        lastIndex = listCount;
+        Debug.Log(lastIndex);
     }
 
     // When the user scrolls up or down the list, the first or last elements get sorted at the end or front and their content gets changed
@@ -68,7 +69,7 @@ public class ScrollViewController : MonoBehaviour
     public void OnScrollViewValueChanged(Vector2 value)
     {
         if (scrollrect.velocity.y > 0)
-        {
+        {           
             if (lastIndex == dataSource.Count() - 1)
                 return;
 
@@ -77,10 +78,17 @@ public class ScrollViewController : MonoBehaviour
 
             lastIndex++;
             firstIndex++;
-
             contentController controller = movedObject.GetComponent<contentController>();
             object data = dataSource.ElementAt(lastIndex);
             controller.SetContents(data);
+
+            int rank = Convert.ToInt32(controller.rank);
+
+            if (scrollrect.verticalNormalizedPosition < 0.02 && rank != 200)
+            {
+                //Debug.Log("normalized is 0 but rank not last");
+                scrollrect.verticalNormalizedPosition = 1f - (firstIndex * minDragOffset);
+            }
         }
         else if (scrollrect.velocity.y < 0)
         {
@@ -95,6 +103,14 @@ public class ScrollViewController : MonoBehaviour
             contentController controller = movedObject.GetComponent<contentController>();
             object data = dataSource.ElementAt(firstIndex);
             controller.SetContents(data);
+
+            int rank = Convert.ToInt32(controller.rank);
+
+            if (scrollrect.verticalNormalizedPosition > 0.9 && rank != 0)
+            {
+                //Debug.Log("normalized is 1 but rank not first");
+                scrollrect.verticalNormalizedPosition = 1f - (firstIndex * minDragOffset);
+            }
         }
 
 
