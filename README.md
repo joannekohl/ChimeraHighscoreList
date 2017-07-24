@@ -27,4 +27,4 @@ I used a Samsung Galaxy S7 as a test device.
 
 Bugs
 ------------
-The scrolling doesn't work upwards properly yet, sorry for that.
+The scrolling doesn't work properly yet, sorry for that.
