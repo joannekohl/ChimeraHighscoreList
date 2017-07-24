@@ -25,6 +25,6 @@ Copy the APK file to your Android Device and install it by clicking on it.
 I used a Samsung Galaxy S7 as a test device.
 
 
-Buggs
+Bugs
 ------------
 The scrolling doesn't work upwards properly yet, sorry for that.
