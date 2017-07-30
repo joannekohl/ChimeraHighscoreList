@@ -326,10 +326,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_Content: {fileID: 1355520561}
   m_Horizontal: 0
-  m_Vertical: 1
+  m_Vertical: 0
   m_MovementType: 2
   m_Elasticity: 0.8
-  m_Inertia: 1
+  m_Inertia: 0
   m_DecelerationRate: 0.135
   m_ScrollSensitivity: 1
   m_Viewport: {fileID: 57597459}
@@ -342,8 +342,8 @@ MonoBehaviour:
   m_OnValueChanged:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 909882679}
-        m_MethodName: OnScrollViewValueChanged
+      - m_Target: {fileID: 0}
+        m_MethodName: 
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -370,6 +370,8 @@ MonoBehaviour:
     type: 2}
   contentHolder: {fileID: 1355520560}
   listCount: 20
+  moveThreshold: 0.01
+  dragSpeed: 0.3
 --- !u!1 &1073634304
 GameObject:
   m_ObjectHideFlags: 0

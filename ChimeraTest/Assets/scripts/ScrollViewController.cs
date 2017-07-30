@@ -12,6 +12,9 @@ public class ScrollViewController : MonoBehaviour, IBeginDragHandler, IEndDragHa
 
     public GameObject contentPrefab;
     public GameObject contentHolder;
+    private Transform firstVisibleElement;
+    private Transform lastVisibleElement;
+    private int numberOfElementsFitTheViewport;
 
     public int listCount = 20;
     private List<GameObject> listItems;
@@ -21,9 +24,12 @@ public class ScrollViewController : MonoBehaviour, IBeginDragHandler, IEndDragHa
     private int lastIndex;
     private int firstIndex;
 
-    private float minDragOffset;
-
-    float scrollPositionY;
+    private int popElementAt = 3;
+    private float elementHeight;
+    private Vector2 previousPosition;
+    public float moveThreshold = 0.01f;
+    public float dragSpeed = 1f;
+    private float scrollviewHeight;
 
     private void Awake ()
     {
@@ -33,17 +39,19 @@ public class ScrollViewController : MonoBehaviour, IBeginDragHandler, IEndDragHa
         {
             listItems.Add(Instantiate(contentPrefab, contentHolder.transform));
         }
+        scrollrect.StopMovement();
+        elementHeight = scrollrect.content.GetChild(0).GetComponent<RectTransform>().rect.height;
     }
 
 
     public void SetDataSource(IEnumerable<object> source)
     {
         if (source == null)
+        {
             Debug.LogWarning("source is null");
+        }
         else
         {
-            // minDragOffset is used for the verticalNormalizedPosition to set the position manually
-            minDragOffset = 1f / source.Count();
             dataSource = source;
 
             GenerateInitialList();
@@ -64,174 +72,143 @@ public class ScrollViewController : MonoBehaviour, IBeginDragHandler, IEndDragHa
         }
         firstIndex = 0;
         lastIndex = initialListSize;
-        Debug.Log(lastIndex);
+        scrollviewHeight = scrollrect.GetComponent<RectTransform>().rect.height;
+        numberOfElementsFitTheViewport = Mathf.CeilToInt(scrollviewHeight / elementHeight);
+
+        firstVisibleElement = scrollrect.content.GetChild(0);
+        lastVisibleElement = scrollrect.content.GetChild(numberOfElementsFitTheViewport);
     }
 
 
-    public void OnBeginDrag(PointerEventData data)
+    public void OnBeginDrag(PointerEventData pointerEventData)
     {
-        Debug.Log("start dragging");
-        scrollPositionY = scrollrect.verticalNormalizedPosition;
+        //Debug.Log("start dragging");
+        previousPosition = pointerEventData.position;
+    }
+
+    private float elementsOutOfView = 0f;
+
+    public void OnDrag(PointerEventData pointerEventData)
+    {
+        var dragPosition = pointerEventData.position - previousPosition;
+        if (dragPosition.sqrMagnitude < moveThreshold)
+            return;
+
+        var scrollDirectionDown = (dragPosition.y > 0.0f);
+        var firstElement = scrollrect.content.GetChild(0);
+        var lastElement = scrollrect.content.GetChild(scrollrect.content.childCount - 1);
+
+        
+        elementsOutOfView = Mathf.Abs(scrollrect.content.transform.localPosition.y / elementHeight);
+        Debug.Log("out of view: " + elementsOutOfView + " local pos: " + scrollrect.content.transform.localPosition.y + " height: " + elementHeight);
+
+            
+
+        firstVisibleElement = scrollrect.content.GetChild((int)elementsOutOfView);
+        contentController controller = firstVisibleElement.GetComponent<contentController>();
+
+        if ((int)elementsOutOfView + numberOfElementsFitTheViewport >= scrollrect.content.childCount)
+            lastVisibleElement = scrollrect.content.GetChild(scrollrect.content.childCount - 1);
+        else
+            lastVisibleElement = scrollrect.content.GetChild((int)elementsOutOfView + numberOfElementsFitTheViewport);
+
+        // user scrolls down
+        if (scrollDirectionDown)
+        {
+            Debug.Log("Scroll down");
+            if (IsTheEndReached(lastVisibleElement))
+            {
+                Debug.Log("last element at bottom");
+                if (scrollrect.content.localPosition.y == (elementHeight * (scrollrect.content.childCount - (scrollviewHeight / elementHeight))))
+                    return;
+            }
+
+            if (scrollrect.content.localPosition.y + dragPosition.magnitude > (elementHeight * (scrollrect.content.childCount - (scrollviewHeight / elementHeight))))
+                scrollrect.content.localPosition = new Vector3(0, (elementHeight * (scrollrect.content.childCount - (scrollviewHeight / elementHeight))), 0);
+            else
+                scrollrect.content.localPosition = new Vector3(0, scrollrect.content.localPosition.y + dragPosition.magnitude * dragSpeed, 0);
+        }
+        else  // user scrolls up
+        {
+            Debug.Log("Scroll up");
+            if (IsTheTopReached(firstVisibleElement))
+            {
+                Debug.Log("first is top");
+                if (scrollrect.content.localPosition.y == 0)
+                    return;
+            }
+
+            if (scrollrect.content.localPosition.y - dragPosition.magnitude < 0)
+                scrollrect.content.localPosition = new Vector3(0, 0, 0);
+            else
+                scrollrect.content.localPosition = new Vector3(0, scrollrect.content.localPosition.y - dragPosition.magnitude * dragSpeed, 0);
+        }
+
+        if (scrollDirectionDown && (scrollrect.content.localPosition.y > (popElementAt * elementHeight)))
+        {
+            if (lastIndex < dataSource.Count()-1)
+            {
+                firstIndex++;
+                lastIndex++;
+            }
+            else
+                return;
+
+            firstElement.transform.SetSiblingIndex(scrollrect.content.childCount);
+
+            scrollrect.content.localPosition = new Vector3(0, scrollrect.content.localPosition.y - elementHeight, 0);
+
+            // get next element from list to display
+            var data = dataSource.ElementAt(lastIndex);
+
+            var contentController = firstElement.GetComponent<contentController>();
+            contentController.SetContents(data);
+        }
+
+        if (!scrollDirectionDown && (scrollrect.content.localPosition.y < (popElementAt * elementHeight)))
+        {
+            if (firstIndex <= 0)
+                return;
+            else
+            {
+                firstIndex--;
+                lastIndex--;
+            }
+
+            lastElement.transform.SetSiblingIndex(0);
+
+            scrollrect.content.localPosition = new Vector3(0, scrollrect.content.localPosition.y + elementHeight, 0);
+
+            // get next element from list to display
+            var data = dataSource.ElementAt(firstIndex);
+
+            var contentController = lastElement.GetComponent<contentController>();
+            contentController.SetContents(data);
+        }
+    }
+
+    private bool IsTheTopReached(Transform firstVisible)
+    {
+        int rank = Convert.ToInt32(firstVisible.GetComponent<contentController>().rank.text);
+
+        if (rank == 1)
+            return true;
+        else
+            return false;
+    }
+
+    private bool IsTheEndReached(Transform lastVisible)
+    {
+        int rank = Convert.ToInt32(lastVisible.GetComponent<contentController>().rank.text);
+
+        if (rank == dataSource.Count())
+            return true;
+        else
+            return false;
     }
 
     public void OnEndDrag(PointerEventData data)
     {
-        Debug.Log("stop dragging");
-    }
-
-    public void OnDrag(PointerEventData pointerEventData)
-    {
-        if (scrollrect.velocity.y > 5f)
-            scrollrect.velocity = new Vector2(0.0f, 5f);
-        else if (scrollrect.velocity.y < -5f)
-            scrollrect.velocity = new Vector2(0.0f, -5f);
-
-        if (scrollrect.velocity.y > 0)
-        {
-            if (lastIndex == dataSource.Count() - 1)
-                return;
-
-            //Debug.Log("scrollPositionY: " + scrollPositionY + " scrollrect.verticalNormalizedPosition: " + scrollrect.verticalNormalizedPosition);
-            
-            if ((scrollPositionY - scrollrect.verticalNormalizedPosition > (1 / dataSource.Count())))
-            {
-                GameObject movedObject = MoveObjectInList(0, listItems.Count - 1);
-                movedObject.transform.SetSiblingIndex(listItems.Count);
-                lastIndex++;
-                firstIndex++;
-                contentController controller = movedObject.GetComponent<contentController>();
-                object data = dataSource.ElementAt(lastIndex);
-                controller.SetContents(data);
-                //scrollrect.verticalNormalizedPosition = 0f;
-                int rank = Convert.ToInt32(controller.rank);
-                Canvas.ForceUpdateCanvases();
-                Debug.Log(scrollrect.verticalNormalizedPosition);
-                if (scrollrect.verticalNormalizedPosition < 0.01 && rank != 200)
-                {
-                    Debug.Log("normalized is 0 but rank not last");
-                    scrollrect.verticalNormalizedPosition = 1f - (firstIndex * minDragOffset);
-                    //Debug.Log("pos: " + scrollrect.verticalNormalizedPosition);
-                }
-                scrollPositionY = scrollrect.verticalNormalizedPosition;
-            }
-        }
-        else if (scrollrect.velocity.y < 0)
-        {
-            if (firstIndex == 0)
-                return;
-            //Debug.Log("scrollPositionY: " + scrollPositionY + " scrollrect.verticalNormalizedPosition: " + scrollrect.verticalNormalizedPosition);
-
-            if (scrollrect.verticalNormalizedPosition - scrollPositionY > (1 / dataSource.Count()))
-            {
-                GameObject movedObject = MoveObjectInList(listItems.Count - 1, 0);
-                movedObject.transform.SetSiblingIndex(0);
-                firstIndex--;
-                lastIndex--;
-
-                contentController controller = movedObject.GetComponent<contentController>();
-                object data = dataSource.ElementAt(firstIndex);
-                controller.SetContents(data);
-                //scrollrect.verticalNormalizedPosition = 1f;
-                int rank = Convert.ToInt32(controller.rank);
-
-                if (scrollrect.verticalNormalizedPosition > 0.9 && rank != 0)
-                {
-                    Debug.Log("normalized is 1 but rank not first");
-                    scrollrect.verticalNormalizedPosition = 1f - (firstIndex * minDragOffset);
-                    Debug.Log("pos: " + scrollrect.verticalNormalizedPosition);
-                }
-                scrollPositionY = scrollrect.verticalNormalizedPosition;
-            }
-        }
-    }
-
-
-    // When the user scrolls up or down the list, the first or last elements get sorted at the end or front and their content gets changed
-    // to the next elements in scroll direction
-    /*public void OnScrollViewValueChanged(Vector2 value)
-    {
-        //Canvas.ForceUpdateCanvases();
-        //Debug.Log("pos: " + scrollrect.verticalNormalizedPosition);
-        //scrollrect.verticalNormalizedPosition = scrollrect.verticalNormalizedPosition / (dataSource.Count() / scrollrect.content.childCount);
-
-        if (scrollrect.velocity.y > 5f)
-            scrollrect.velocity = new Vector2(0.0f, 5f);
-        else if (scrollrect.velocity.y < -5f)
-            scrollrect.velocity = new Vector2(0.0f, -5f);
-
-        if (scrollrect.velocity.y > 0)
-        {
-            if (lastIndex == dataSource.Count() - 1)
-                return;
-
-            //Debug.Log("scrollPositionY: " + scrollPositionY + " scrollrect.verticalNormalizedPosition: " + scrollrect.verticalNormalizedPosition);
-
-            if ((scrollPositionY - scrollrect.verticalNormalizedPosition > (1 / 20)))
-            {
-               GameObject movedObject = MoveObjectInList(0, listItems.Count - 1);
-                movedObject.transform.SetSiblingIndex(listItems.Count);
-                lastIndex++;
-                firstIndex++;
-                contentController controller = movedObject.GetComponent<contentController>();
-                object data = dataSource.ElementAt(lastIndex);
-                controller.SetContents(data);
-                //scrollrect.verticalNormalizedPosition = 0f;
-                int rank = Convert.ToInt32(controller.rank);
-                Canvas.ForceUpdateCanvases();
-                if (scrollrect.verticalNormalizedPosition < 0.01 && rank != 0)
-                {
-                    Debug.Log("normalized is 0 but rank not last");
-                    scrollrect.verticalNormalizedPosition = 1f - (firstIndex * minDragOffset);
-                    Debug.Log("pos: " + scrollrect.verticalNormalizedPosition);
-                }
-                scrollPositionY = scrollrect.verticalNormalizedPosition;
-            }
-        }
-        else if (scrollrect.velocity.y < 0)
-        {
-            if (firstIndex == 0)
-                return;
-            //Debug.Log("scrollPositionY: " + scrollPositionY + " scrollrect.verticalNormalizedPosition: " + scrollrect.verticalNormalizedPosition);
-
-            if (scrollrect.verticalNormalizedPosition - scrollPositionY > (1 / 20))
-            {
-               GameObject movedObject = MoveObjectInList(listItems.Count - 1, 0);
-                movedObject.transform.SetSiblingIndex(0);
-                firstIndex--;
-                lastIndex--;
-
-                contentController controller = movedObject.GetComponent<contentController>();
-                object data = dataSource.ElementAt(firstIndex);
-                controller.SetContents(data);
-                //scrollrect.verticalNormalizedPosition = 1f;
-                int rank = Convert.ToInt32(controller.rank);
-
-                if (scrollrect.verticalNormalizedPosition > 0.9 && rank != 0)
-                {
-                    Debug.Log("normalized is 1 but rank not first");
-                    scrollrect.verticalNormalizedPosition = 1f - (firstIndex * minDragOffset);
-                    Debug.Log("pos: " + scrollrect.verticalNormalizedPosition);
-                }
-                scrollPositionY = scrollrect.verticalNormalizedPosition;
-            }
-        }
-
-
-        // **** This is the line of code I talk about in the "challenges and possible integration problem pdf ******/
-
-        // To make the scrolling work although the scrollview just has 20 elements and the 
-        // normalizedPosition is based on those 20 elements (0-1), the verticalNormalizedPosition
-        // gets set manually by using the minDragOffset
-        //scrollrect.verticalNormalizedPosition = 1f - (firstIndex * minDragOffset);
-    //}*/
-
-    private GameObject MoveObjectInList(int from, int to)
-    {
-        GameObject go = listItems[from];
-
-        listItems.RemoveAt(from);
-        listItems.Insert(to, go);
-
-        return go;
+        //Debug.Log("stop dragging");
     }
 }
