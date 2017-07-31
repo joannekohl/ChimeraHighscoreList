@@ -6,7 +6,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-public class ScrollViewController : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
+public class ScrollViewController : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerDownHandler
 {
     private IEnumerable<object> dataSource;
 
@@ -26,17 +26,26 @@ public class ScrollViewController : MonoBehaviour, IBeginDragHandler, IDragHandl
 
     public int popElementAt = 3;
     private float elementHeight;
+    private Vector2 dragStartPosition;
     private Vector2 previousPosition;
-    public float moveThreshold = 0.01f;
-    public float dragSpeed = 1f;
+    private Vector2 dragPosition;
+    private Vector2 stoppedMovingOnDragPosition;
+    private Vector2 currentDragPosition;
+    private bool didUserStopMoving = false;
+    private bool userStoppedToDrag = false;
+    public float moveThreshold = 1f;
+    public float dragSpeed = 6f;
     private float scrollviewHeight;
     private float elementsOutOfView = 0f;
     public float inertiaThreshold = 60.0f;
     private bool inertia = false;
+    public float inertiaSpeed = 0.3f;
+    private float lerpVal;
+    private bool isOnDrag = false;
 
     private PointerEventData dragEndData;
 
-    private void Awake ()
+    private void Awake()
     {
         listItems = new List<GameObject>(listCount);
         scrollrect = GetComponent<ScrollRect>();
@@ -65,7 +74,11 @@ public class ScrollViewController : MonoBehaviour, IBeginDragHandler, IDragHandl
     {
         int initialListSize = Math.Min(dataSource.Count(), listCount);
 
-        for(int i = 0; i < initialListSize; i++)
+        elementHeight = scrollrect.content.GetChild(0).GetComponent<RectTransform>().rect.height;
+        scrollviewHeight = scrollrect.GetComponent<RectTransform>().rect.height;
+        numberOfElementsFitTheViewport = scrollviewHeight / elementHeight;
+
+        for (int i = 0; i < initialListSize; i++)
         {
             object data = dataSource.ElementAt(i);
             GameObject listItem = listItems[i];
@@ -76,25 +89,29 @@ public class ScrollViewController : MonoBehaviour, IBeginDragHandler, IDragHandl
         firstIndex = 0;
         lastIndex = initialListSize;
 
-        elementHeight = scrollrect.content.GetChild(0).GetComponent<RectTransform>().rect.height;
-        scrollviewHeight = scrollrect.GetComponent<RectTransform>().rect.height;
-        numberOfElementsFitTheViewport = scrollviewHeight / elementHeight;
+
 
         firstVisibleElement = scrollrect.content.GetChild(0);
         lastVisibleElement = scrollrect.content.GetChild(Mathf.CeilToInt(numberOfElementsFitTheViewport));
     }
 
+    public void OnPointerDown(PointerEventData eventData)
+    {
+        // set inertia back to false to stop the inertia scrolling when touching the scrollview again
+        inertia = false;
+    }
 
     public void OnBeginDrag(PointerEventData pointerEventData)
     {
+        dragStartPosition = pointerEventData.position;
         previousPosition = pointerEventData.position;
+        isOnDrag = true;
     }
-
-    private Vector2 dragPosition;
 
     public void OnDrag(PointerEventData pointerEventData)
     {
-        dragPosition = pointerEventData.position - previousPosition;
+        currentDragPosition = pointerEventData.position;
+        dragPosition = pointerEventData.position - dragStartPosition;
         if (dragPosition.sqrMagnitude < moveThreshold)
             return;
 
@@ -102,11 +119,12 @@ public class ScrollViewController : MonoBehaviour, IBeginDragHandler, IDragHandl
         var firstElement = scrollrect.content.GetChild(0);
         var lastElement = scrollrect.content.GetChild(scrollrect.content.childCount - 1);
 
-
         elementsOutOfView = scrollrect.content.transform.localPosition.y / elementHeight;
 
-        firstVisibleElement = scrollrect.content.GetChild((int)elementsOutOfView);
+        if (elementsOutOfView < 0)
+            elementsOutOfView = 0;
 
+        firstVisibleElement = scrollrect.content.GetChild((int)elementsOutOfView);
 
         var lastVisibleIndex = (int)(elementsOutOfView + numberOfElementsFitTheViewport);
         if (lastVisibleIndex >= scrollrect.content.childCount)
@@ -126,6 +144,8 @@ public class ScrollViewController : MonoBehaviour, IBeginDragHandler, IDragHandl
         {
             PopLastAndMoveToFirst(lastElement);
         }
+
+        dragStartPosition = pointerEventData.position;
     }
 
     private void MoveContent(bool scrollDirectionDown, Vector2 dragPosition)
@@ -224,28 +244,43 @@ public class ScrollViewController : MonoBehaviour, IBeginDragHandler, IDragHandl
 
     public void OnEndDrag(PointerEventData eventData)
     {
-        Debug.Log("dragposition: " + dragPosition.magnitude);
+        isOnDrag = false;
+        //Debug.Log("dragposition: " + dragPosition.magnitude);
         if (dragPosition.magnitude > inertiaThreshold)
+        {
             inertia = true;
+        }
+        else
+            inertia = false;
+
 
         dragEndData = eventData;
-        lerpVal = dragSpeed;
+        lerpVal = inertiaSpeed;
     }
 
     private void Update()
     {
-        if(inertia)
+        if (isOnDrag)
         {
-            
+            var delta = previousPosition - currentDragPosition;
+
+            if (delta.sqrMagnitude < 10)
+                userStoppedToDrag = true;
+            else
+                userStoppedToDrag = false;
+
+            previousPosition = currentDragPosition;
+        }
+
+        if (inertia && userStoppedToDrag == false)
+        {
             AccelerateScrolling(dragEndData);
         }
     }
 
-    private float lerpVal;
 
     private void AccelerateScrolling(PointerEventData data)
     {
-        dragPosition = data.position - previousPosition;
         if (dragPosition.sqrMagnitude < moveThreshold)
             return;
 
@@ -253,60 +288,63 @@ public class ScrollViewController : MonoBehaviour, IBeginDragHandler, IDragHandl
         var firstElement = scrollrect.content.GetChild(0);
         var lastElement = scrollrect.content.GetChild(scrollrect.content.childCount - 1);
 
-            elementsOutOfView = scrollrect.content.transform.localPosition.y / elementHeight;
+        elementsOutOfView = scrollrect.content.transform.localPosition.y / elementHeight;
 
-            firstVisibleElement = scrollrect.content.GetChild((int)elementsOutOfView);
+        if (elementsOutOfView < 0)
+            elementsOutOfView = 0;
+
+        firstVisibleElement = scrollrect.content.GetChild((int)elementsOutOfView);
 
 
-            var lastVisibleIndex = (int)(elementsOutOfView + numberOfElementsFitTheViewport);
-            if (lastVisibleIndex >= scrollrect.content.childCount)
-                lastVisibleElement = scrollrect.content.GetChild(scrollrect.content.childCount - 1);
+        var lastVisibleIndex = (int)(elementsOutOfView + numberOfElementsFitTheViewport);
+        if (lastVisibleIndex >= scrollrect.content.childCount)
+            lastVisibleElement = scrollrect.content.GetChild(scrollrect.content.childCount - 1);
+        else
+            lastVisibleElement = scrollrect.content.GetChild(lastVisibleIndex);
+
+
+        if (scrollDirectionDown)
+        {
+            var unvisibleElementCount = scrollrect.content.childCount - numberOfElementsFitTheViewport;
+            // if the last element has the lowest rank and the scrollrects position shows the last element at the bottom, stop moving the content.
+            if (IsTheEndReached(lastVisibleElement))
+            {
+                if (scrollrect.content.localPosition.y == (elementHeight * unvisibleElementCount))
+                    return;
+            }
+
+            if (scrollrect.content.localPosition.y + dragPosition.magnitude > (elementHeight * unvisibleElementCount))
+                scrollrect.content.localPosition = new Vector3(0, (elementHeight * unvisibleElementCount), 0);
             else
-                lastVisibleElement = scrollrect.content.GetChild(lastVisibleIndex);
-
-
-            if (scrollDirectionDown)
+                scrollrect.content.localPosition = new Vector3(0, scrollrect.content.localPosition.y + dragPosition.magnitude * lerpVal, 0);
+        }
+        else  // user scrolls up, move the content
+        {
+            if (IsTheTopReached(firstVisibleElement))
             {
-                var unvisibleElementCount = scrollrect.content.childCount - numberOfElementsFitTheViewport;
-                // if the last element has the lowest rank and the scrollrects position shows the last element at the bottom, stop moving the content.
-                if (IsTheEndReached(lastVisibleElement))
-                {
-                    if (scrollrect.content.localPosition.y == (elementHeight * unvisibleElementCount))
-                        return;
-                }
-
-                if (scrollrect.content.localPosition.y + dragPosition.magnitude > (elementHeight * unvisibleElementCount))
-                    scrollrect.content.localPosition = new Vector3(0, (elementHeight * unvisibleElementCount), 0);
-                else
-                    scrollrect.content.localPosition = new Vector3(0, scrollrect.content.localPosition.y + dragPosition.magnitude * lerpVal, 0);
-            }
-            else  // user scrolls up, move the content
-            {
-                if (IsTheTopReached(firstVisibleElement))
-                {
-                    if (scrollrect.content.localPosition.y == 0)
-                        return;
-                }
-
-                if (scrollrect.content.localPosition.y - dragPosition.magnitude < 0)
-                    scrollrect.content.localPosition = new Vector3(0, 0, 0);
-                else
-                    scrollrect.content.localPosition = new Vector3(0, scrollrect.content.localPosition.y - dragPosition.magnitude * lerpVal, 0);
+                if (scrollrect.content.localPosition.y == 0)
+                    return;
             }
 
-            if (scrollDirectionDown && (scrollrect.content.localPosition.y > (popElementAt * elementHeight)))
-            {
-                PopFirstAndMoveToEnd(firstElement);
-            }
+            if (scrollrect.content.localPosition.y - dragPosition.magnitude < 0)
+                scrollrect.content.localPosition = new Vector3(0, 0, 0);
+            else
+                scrollrect.content.localPosition = new Vector3(0, scrollrect.content.localPosition.y - dragPosition.magnitude * lerpVal, 0);
+        }
 
-            if (!scrollDirectionDown && (scrollrect.content.localPosition.y < (popElementAt * elementHeight)))
-            {
-                PopLastAndMoveToFirst(lastElement);
-            }
+        if (scrollDirectionDown && (scrollrect.content.localPosition.y > (popElementAt * elementHeight)))
+        {
+            PopFirstAndMoveToEnd(firstElement);
+        }
+
+        if (!scrollDirectionDown && (scrollrect.content.localPosition.y < (popElementAt * elementHeight)))
+        {
+            PopLastAndMoveToFirst(lastElement);
+        }
 
         lerpVal -= 0.01f;
-        Debug.Log(lerpVal);
-        if(lerpVal <= 0)
-           inertia = false;
+
+        if (lerpVal <= 0)
+            inertia = false;
     }
 }
