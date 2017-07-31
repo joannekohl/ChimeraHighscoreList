@@ -370,11 +370,9 @@ MonoBehaviour:
     type: 2}
   contentHolder: {fileID: 1355520560}
   listCount: 20
-  popElementAt: 4
+  popElementAt: 3
   moveThreshold: 1
-  dragSpeed: 4
   inertiaThreshold: 5
-  inertiaSpeed: 1
 --- !u!1 &1073634304
 GameObject:
   m_ObjectHideFlags: 0
@@ -694,7 +692,7 @@ GameObject:
   - component: {fileID: 1593738739}
   m_Layer: 0
   m_Name: MainCamera
-  m_TagString: Untagged
+  m_TagString: MainCamera
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0

@@ -33,15 +33,16 @@ public class ScrollViewController : MonoBehaviour, IBeginDragHandler, IDragHandl
     private Vector2 currentDragPosition;
     private bool didUserStopMoving = false;
     private bool userStoppedToDrag = false;
-    public float moveThreshold = 1f;
-    public float dragSpeed = 6f;
+    public float moveThreshold;
+    private float dragSpeed;
     private float scrollviewHeight;
     private float elementsOutOfView = 0f;
-    public float inertiaThreshold = 60.0f;
+    public float inertiaThreshold;
     private bool inertia = false;
-    public float inertiaSpeed = 0.3f;
+    private float inertiaSpeed;
     private float lerpVal;
     private bool isOnDrag = false;
+    private bool areThereEnoughElementsToScroll = true;
 
     private PointerEventData dragEndData;
 
@@ -64,7 +65,7 @@ public class ScrollViewController : MonoBehaviour, IBeginDragHandler, IDragHandl
         }
         else
         {
-            dataSource = source;
+            dataSource = source.Take(100).ToList();
 
             GenerateInitialList();
         }
@@ -76,7 +77,10 @@ public class ScrollViewController : MonoBehaviour, IBeginDragHandler, IDragHandl
 
         elementHeight = scrollrect.content.GetChild(0).GetComponent<RectTransform>().rect.height;
         scrollviewHeight = scrollrect.GetComponent<RectTransform>().rect.height;
-        numberOfElementsFitTheViewport = scrollviewHeight / elementHeight;
+        // not sure why 2560. But speed on 1 is fine with 2560 Screenheight
+        dragSpeed = 2560 / Screen.height;
+        inertiaSpeed = dragSpeed / 2;
+        numberOfElementsFitTheViewport = scrollviewHeight / elementHeight;           
 
         for (int i = 0; i < initialListSize; i++)
         {
@@ -89,10 +93,11 @@ public class ScrollViewController : MonoBehaviour, IBeginDragHandler, IDragHandl
         firstIndex = 0;
         lastIndex = initialListSize;
 
-
-
         firstVisibleElement = scrollrect.content.GetChild(0);
-        lastVisibleElement = scrollrect.content.GetChild(Mathf.CeilToInt(numberOfElementsFitTheViewport));
+        if (Mathf.CeilToInt(numberOfElementsFitTheViewport) >= scrollrect.content.childCount)
+            lastVisibleElement = scrollrect.content.GetChild(scrollrect.content.childCount - 1);
+        else
+            lastVisibleElement = scrollrect.content.GetChild(Mathf.CeilToInt(numberOfElementsFitTheViewport));
     }
 
     public void OnPointerDown(PointerEventData eventData)
@@ -103,13 +108,20 @@ public class ScrollViewController : MonoBehaviour, IBeginDragHandler, IDragHandl
 
     public void OnBeginDrag(PointerEventData pointerEventData)
     {
+        if (numberOfElementsFitTheViewport >= dataSource.Count() || numberOfElementsFitTheViewport >= listCount)
+            return;
+        
         dragStartPosition = pointerEventData.position;
         previousPosition = pointerEventData.position;
         isOnDrag = true;
+        Debug.Log("is on drag: " + isOnDrag);
     }
 
     public void OnDrag(PointerEventData pointerEventData)
     {
+        if (isOnDrag == false)
+            return;
+
         currentDragPosition = pointerEventData.position;
         dragPosition = pointerEventData.position - dragStartPosition;
         if (dragPosition.sqrMagnitude < moveThreshold)
@@ -150,6 +162,7 @@ public class ScrollViewController : MonoBehaviour, IBeginDragHandler, IDragHandl
 
     private void MoveContent(bool scrollDirectionDown, Vector2 dragPosition)
     {
+        //Debug.Log("move content");
         if (scrollDirectionDown)
         {
             var unvisibleElementCount = scrollrect.content.childCount - numberOfElementsFitTheViewport;
@@ -244,6 +257,9 @@ public class ScrollViewController : MonoBehaviour, IBeginDragHandler, IDragHandl
 
     public void OnEndDrag(PointerEventData eventData)
     {
+        if (isOnDrag == false)
+            return;
+
         isOnDrag = false;
         //Debug.Log("dragposition: " + dragPosition.magnitude);
         if (dragPosition.magnitude > inertiaThreshold)
@@ -260,6 +276,7 @@ public class ScrollViewController : MonoBehaviour, IBeginDragHandler, IDragHandl
 
     private void Update()
     {
+        //Debug.Log("is on drag: " + isOnDrag);
         if (isOnDrag)
         {
             var delta = previousPosition - currentDragPosition;
@@ -342,7 +359,7 @@ public class ScrollViewController : MonoBehaviour, IBeginDragHandler, IDragHandl
             PopLastAndMoveToFirst(lastElement);
         }
 
-        lerpVal -= 0.01f;
+        lerpVal -= inertiaSpeed/10;
 
         if (lerpVal <= 0)
             inertia = false;
